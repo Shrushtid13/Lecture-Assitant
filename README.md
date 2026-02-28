@@ -5,6 +5,11 @@ Once notes are generated, an interactive Q&A chat lets you ask anything about th
 
 <img width="1892" height="864" alt="Screenshot 2026-02-28 152015" src="https://github.com/user-attachments/assets/a9ae94cd-e29a-47fa-abd4-274fd007323d" />
 
+## Live Demo
+[![Hugging Face Spaces](https://img.shields.io/badge/Hugging%20Face-Spaces-orange?style=for-the-badge&logo=huggingface&logoColor=white)](https://huggingface.co/spaces/Shrushtid13/Lecture-Assistant)
+Try the live app here: Lumina AI on Hugging Face Spaces -> https://huggingface.co/spaces/Shrushtid13/Lecture-Assistant
+
+
 
 Features
 
@@ -56,9 +61,6 @@ Click Download Notes to export as a .docx file .
 Use the Q&A Chat to ask questions about the lecture content .
 
 
-## Live Demo
-[![Hugging Face Spaces](https://img.shields.io/badge/Hugging%20Face-Spaces-orange?style=for-the-badge&logo=huggingface&logoColor=white)](https://huggingface.co/spaces/Shrushtid13/Lecture-Assistant)
-Try the live app here: Lumina AI on Hugging Face Spaces -> https://huggingface.co/spaces/Shrushtid13/Lecture-Assistant
 
 
 
