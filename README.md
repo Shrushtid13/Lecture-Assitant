@@ -11,7 +11,7 @@ Try the live app here: Lumina AI on Hugging Face Spaces -> https://huggingface.c
 
 
 
-Features
+## Features
 
 Automatic Transcription — Supports .wav, .mp3, .mp4, .ogg, .m4a via ASR node .
 Intelligent Note Generation — Multi-stage LangGraph pipeline: transcription → relevance filtering → normalization → chunking → topic detection → summarization → keyword extraction → validation → structuring .
@@ -24,7 +24,7 @@ Dark Blue UI Theme — Custom professional dark interface built with Streamlit .
 <img width="500" height="500" alt="ChatGPT Image Feb 28, 2026, 09_18_35 PM" src="https://github.com/user-attachments/assets/1d5a47cb-9382-4db9-ba4e-af23f75d150c" />
 
 
-Endpoints with Description
+## Endpoints with Description
 
 GET /health – Health check .
 POST /process-lecture – Upload audio/video, run pipeline, return notes .
@@ -32,7 +32,7 @@ POST /chat – Ask a question about a processed lecture .
 GET /download-notes/{lecture_id} – Download notes as .docx .
 GET /sessions – List active lecture sessions .
 
-Running the App
+## Running the App
 
 Option 1 — Single command (recommended)
 The Streamlit app automatically starts the FastAPI backend in the background:
@@ -52,7 +52,7 @@ python main.py
 Terminal 2 — Start the frontend
 streamlit run app.py
 
-Usage
+## Usage
 
 Upload a lecture file (.wav, .mp3, .mp4, .ogg, .m4a) .
 Click Generate Notes — the pipeline transcribes and processes the lecture .
