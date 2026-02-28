@@ -1,4 +1,4 @@
-<img width="1892" height="940" alt="Screenshot 2026-02-28 152015" src="https://github.com/user-attachments/assets/5aa1d8f0-c405-468c-8f30-488b77fb5253" /># Lecture-Assitant
+
 Lumina AI is Streamlit app that transforms audio/video lectures into structured notes with keywords, enables interactive Q&amp;A using AI,  and allows DOCX export. 
 
 
