@@ -3,7 +3,8 @@ Lumina AI is an end-to-end lecture intelligence platform. Upload any audio or vi
 Once notes are generated, an interactive Q&A chat lets you ask anything about the lecture, with answers grounded in the actual content via retrieval-augmented generation (RAG). Notes can be exported as a formatted .docx file.
 
 
-<img width="1892" height="940" alt="Screenshot 2026-02-28 152015" src="https://github.com/user-attachments/assets/ff98b183-9947-45b1-967c-af257a2038fb" />
+<img width="1892" height="864" alt="Screenshot 2026-02-28 152015" src="https://github.com/user-attachments/assets/a9ae94cd-e29a-47fa-abd4-274fd007323d" />
+
 
 Features
 
@@ -15,6 +16,9 @@ FastAPI Backend — Clean REST API separating backend logic from the Streamlit f
 Auto-Start Backend — Streamlit app automatically launches the FastAPI server on startup
 Dark Blue UI Theme — Custom professional dark interface built with Streamlit  
 
+<img width="1024" height="1146" alt="ChatGPT Image Feb 28, 2026, 09_18_35 PM" src="https://github.com/user-attachments/assets/1d5a47cb-9382-4db9-ba4e-af23f75d150c" />
+
+
 Endpoints with Description
 
 GET /health – Health check
@@ -23,7 +27,35 @@ POST /chat – Ask a question about a processed lecture
 GET /download-notes/{lecture_id} – Download notes as .docx
 GET /sessions – List active lecture sessions
 
-<img width="1024" height="1536" alt="ChatGPT Image Feb 28, 2026, 09_18_35 PM" src="https://github.com/user-attachments/assets/ddbe8991-51b0-4381-871a-4294c306bbda" />
+Running the App
+
+Option 1 — Single command (recommended)
+The Streamlit app automatically starts the FastAPI backend in the background:
+streamlit run app.py
+
+The app will:
+
+Detect that the backend is not running
+Launch main.py as a background process
+Wait for the backend to become available
+Open the Streamlit UI at http://localhost:8501
+
+Option 2 -  Run separately
+# Terminal 1 — Start the backend
+python main.py
+
+# Terminal 2 — Start the frontend
+streamlit run app.py
+
+Usage
+
+Upload a lecture file (.wav, .mp3, .mp4, .ogg, .m4a)
+Click Generate Notes — the pipeline transcribes and processes the lecture
+View structured notes with topics, summaries, and keywords
+Click Download Notes to export as a .docx file
+Use the Q&A Chat to ask questions about the lecture content
+
+
 
 
 
