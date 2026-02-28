@@ -16,7 +16,7 @@ FastAPI Backend — Clean REST API separating backend logic from the Streamlit f
 Auto-Start Backend — Streamlit app automatically launches the FastAPI server on startup .
 Dark Blue UI Theme — Custom professional dark interface built with Streamlit .
 
-<img width="1024" height="1146" alt="ChatGPT Image Feb 28, 2026, 09_18_35 PM" src="https://github.com/user-attachments/assets/1d5a47cb-9382-4db9-ba4e-af23f75d150c" />
+<img width="900" height="767" alt="ChatGPT Image Feb 28, 2026, 09_18_35 PM" src="https://github.com/user-attachments/assets/1d5a47cb-9382-4db9-ba4e-af23f75d150c" />
 
 
 Endpoints with Description
