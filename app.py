@@ -1,20 +1,20 @@
 import streamlit as st
-import tempfile
+import requests
 import os
+import subprocess
+import sys
+import time
+from dotenv import load_dotenv
 
-from graphs.notes_graph import build_note_graph
-from graphs.qa_graph import build_qa_graph
-from llm_provider import get_main_llm
-from embeddings_provider import get_embeddings
-from vector_store import build_vector_store
-from formatter import DocumentFormatter
+load_dotenv()
 
+# ── API Base URL (reads from env for deployment flexibility) ──────────────────
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="Lumina AI", layout="wide")
 
 
-# Dark Blue Theme CSS
-
+# ── Dark Blue Theme CSS (intact) ──────────────────────────────────────────────
 
 st.markdown("""
 <style>
@@ -161,7 +161,6 @@ st.markdown("""
     }
 
     /* ── Chat Input Footer ── */
-    /* The sticky bottom bar that holds the chat input */
     [data-testid="stBottom"],
     [data-testid="stBottom"] > div,
     .stBottom,
@@ -170,7 +169,6 @@ st.markdown("""
         border-top: 1px solid rgba(30, 74, 158, 0.4) !important;
     }
 
-    /* Extra safety — any fixed/sticky footer div */
     div[style*="position: sticky"],
     div[style*="position:sticky"],
     div[style*="position: fixed"],
@@ -195,7 +193,6 @@ st.markdown("""
         box-shadow: 0 0 20px rgba(77, 166, 255, 0.15) !important;
     }
 
-    /* The actual textarea element */
     [data-testid="stChatInput"] textarea,
     [data-testid="stChatInput"] textarea:focus,
     [data-testid="stChatInput"] textarea:active {
@@ -213,7 +210,6 @@ st.markdown("""
         -webkit-text-fill-color: #4a6fa5 !important;
     }
 
-    /* Override any autofill or browser-injected white bg */
     [data-testid="stChatInput"] textarea:-webkit-autofill,
     [data-testid="stChatInput"] textarea:-webkit-autofill:hover,
     [data-testid="stChatInput"] textarea:-webkit-autofill:focus {
@@ -221,7 +217,6 @@ st.markdown("""
         -webkit-text-fill-color: #ffffff !important;
     }
 
-    /* Chat input send button */
     [data-testid="stChatInputSubmitButton"] > button {
         background: linear-gradient(135deg, #1a5cb8, #2470d8) !important;
         border-radius: 8px !important;
@@ -239,7 +234,6 @@ st.markdown("""
         margin-bottom: 0.6rem !important;
     }
 
-    /* User message */
     [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
         background: rgba(26, 92, 184, 0.15) !important;
         border-color: rgba(77, 166, 255, 0.25) !important;
@@ -319,7 +313,6 @@ st.markdown("""
         background: #050d1a !important;
     }
 
-    /* Top accent line — replace white with blue gradient */
     [data-testid="stDecoration"] {
         background: linear-gradient(90deg, #1a5cb8, #4da6ff, #2470d8) !important;
         height: 2px !important;
@@ -333,7 +326,7 @@ st.markdown("""
         border: none !important;
     }
 
-    /* ── Sidebar (if used) ── */
+    /* ── Sidebar ── */
     [data-testid="stSidebar"] {
         background: #080f1f !important;
         border-right: 1px solid rgba(30, 74, 158, 0.3) !important;
@@ -362,100 +355,145 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# ── Title ─────────────────────────────────────────────────────────────────────
+
 st.title("✦ Lumina AI — Lecture Intelligence")
 
 
-# Session State Init
+# ── Backend Auto-Start ────────────────────────────────────────────────────────
+# Runs once per Streamlit browser session.
+# If the FastAPI server isn't reachable, launches main.py as a background
+# subprocess and waits up to 20 seconds for it to become available.
+
+def _is_backend_alive() -> bool:
+    try:
+        r = requests.get(f"{API_BASE_URL}/", timeout=3)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+if "backend_started" not in st.session_state:
+    st.session_state.backend_started = False
+
+if not st.session_state.backend_started:
+
+    if not _is_backend_alive():
+        # Resolve absolute path to main.py so this works from any working directory
+        main_py = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
+
+        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend.log")
+
+        with st.spinner("🔧 Starting Lumina AI backend..."):
+            with open(log_path, "w") as log_file:
+                subprocess.Popen(
+                    [sys.executable, main_py],
+                    stdout=log_file,
+                    stderr=log_file,
+                    close_fds=True
+                )
+
+            # Poll every second until backend responds (max 20s)
+            for _ in range(20):
+                time.sleep(1)
+                if _is_backend_alive():
+                    break
+            else:
+                # Read last 30 lines of log to show the real error
+                try:
+                    with open(log_path, "r") as f:
+                        log_tail = "".join(f.readlines()[-30:])
+                except Exception:
+                    log_tail = "Could not read backend.log"
+
+                st.error("⚠️ Backend failed to start. See error below:")
+                st.code(log_tail, language="bash")
+                st.stop()
+
+    # Mark as started so we never re-run this block on rerenders
+    st.session_state.backend_started = True
+
+
+# ── Session State Init ────────────────────────────────────────────────────────
 
 if "notes" not in st.session_state:
     st.session_state.notes = None
 
-if "retriever" not in st.session_state:
-    st.session_state.retriever = None
+if "lecture_id" not in st.session_state:
+    st.session_state.lecture_id = None
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-if "lecture_id" not in st.session_state:
-    st.session_state.lecture_id = None
-
-if "note_graph" not in st.session_state:
-    st.session_state.note_graph = build_note_graph()
-
-if "qa_graph" not in st.session_state:
-    st.session_state.qa_graph = build_qa_graph()
+if "docx_bytes" not in st.session_state:
+    st.session_state.docx_bytes = None
 
 
-
-# File Upload
-
+# ── File Upload ───────────────────────────────────────────────────────────────
 
 uploaded_file = st.file_uploader(
     "Upload Lecture",
-    type=["wav","mp3","mp4","ogg","m4a"]
+    type=["wav", "mp3", "mp4", "ogg", "m4a"]
 )
 
 if uploaded_file:
 
-    suffix = "." + uploaded_file.name.split(".")[-1]
+    if st.button("⚡ Generate Notes"):
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(uploaded_file.read())
-        temp_path = tmp.name
+        with st.spinner("Processing lecture... this may take a minute."):
+            try:
+                response = requests.post(
+                    f"{API_BASE_URL}/process-lecture",
+                    files={"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)},
+                    timeout=300
+                )
 
-    # Create lecture-specific collection name
-    lecture_id = uploaded_file.name.replace(".", "_").replace(" ", "_")
-    st.session_state.lecture_id = lecture_id
+                if response.status_code == 200:
+                    data = response.json()
+                    st.session_state.lecture_id   = data["lecture_id"]
+                    st.session_state.notes        = data["notes"]
+                    st.session_state.chat_history = []
+                    st.session_state.docx_bytes   = None  # reset before fetching
 
-    if st.button(" Generate Notes"):
+                    # Fetch and cache DOCX bytes immediately while session is live
+                    try:
+                        docx_resp = requests.get(
+                            f"{API_BASE_URL}/download-notes/{data['lecture_id']}",
+                            timeout=60
+                        )
+                        if docx_resp.status_code == 200:
+                            st.session_state.docx_bytes = docx_resp.content
+                    except Exception:
+                        pass  # non-fatal — warning shown below if bytes are None
 
-        with st.spinner("Processing lecture..."):
+                    st.success("✅ Notes generated successfully!")
 
-            result = st.session_state.note_graph.invoke({
-                "audio_path": temp_path,
-                "llm": get_main_llm()
-            })
+                else:
+                    detail = response.json().get("detail", response.text)
+                    st.error(f"❌ Backend error: {detail}")
 
-            st.session_state.notes = result["structured_notes"]
-
-          
-            # Build Chroma Collection
-           
-
-            embeddings = get_embeddings()
-
-            vector_store = build_vector_store(
-                st.session_state.notes,
-                embeddings,
-                lecture_id=lecture_id
-            )
-
-            st.session_state.retriever = vector_store.as_retriever(
-                search_kwargs={"k": 4}
-            )
-
-            # Reset chat when new lecture uploaded
-            st.session_state.chat_history = []
-
-           
-            # Generate DOCX
-           
-
-            formatter = DocumentFormatter()
-            file_buffer = formatter.generate_docx(
-                st.session_state.notes
-            )
-
-            st.download_button(
-                "⬇ Download Notes",
-                data=file_buffer,
-                file_name="Lecture_Notes.docx"
-            )
+            except requests.exceptions.Timeout:
+                st.error("⏱️ Request timed out. The lecture may be too long — try a shorter clip.")
+            except requests.exceptions.ConnectionError:
+                st.error("🔌 Lost connection to the backend. Please check that the API server is still running.")
+            except Exception as e:
+                st.error(f"Unexpected error: {e}")
 
 
+# ── Download Notes Button ─────────────────────────────────────────────────────
 
-# Display Notes
+if st.session_state.docx_bytes:
+    st.download_button(
+        label="⬇ Download Notes",
+        data=st.session_state.docx_bytes,
+        file_name="Lecture_Notes.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+elif st.session_state.notes and not st.session_state.docx_bytes:
+    st.warning("⚠️ DOCX could not be prepared. Notes are still displayed below.")
 
+
+# ── Display Notes ─────────────────────────────────────────────────────────────
 
 if st.session_state.notes:
 
@@ -470,26 +508,23 @@ if st.session_state.notes:
     st.subheader("Lecture Q&A Chat")
 
 
-    # Chat History Display
- 
+    # ── Chat History Display ──────────────────────────────────────────────────
 
     for chat in st.session_state.chat_history:
         with st.chat_message(chat["role"]):
             st.markdown(chat["content"])
 
-   
-    # Continuous Chat Input
-   
+
+    # ── Chat Input ────────────────────────────────────────────────────────────
 
     user_question = st.chat_input("Ask anything about this lecture...")
 
     if user_question:
 
-        if not st.session_state.retriever:
-            st.error("Vector store not initialized.")
-        else:
+        if not st.session_state.lecture_id:
+            st.error("No active lecture session. Please upload and process a lecture first.")
 
-            # Add user message
+        else:
             st.session_state.chat_history.append({
                 "role": "user",
                 "content": user_question
@@ -500,18 +535,37 @@ if st.session_state.notes:
 
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
+                    try:
+                        chat_response = requests.post(
+                            f"{API_BASE_URL}/chat",
+                            json={
+                                "lecture_id":   st.session_state.lecture_id,
+                                "question":     user_question,
+                                "chat_history": st.session_state.chat_history
+                            },
+                            timeout=60
+                        )
 
-                    result = st.session_state.qa_graph.invoke({
-                        "question": user_question,
-                        "retriever": st.session_state.retriever,
-                        "llm": get_main_llm()
-                    })
+                        if chat_response.status_code == 200:
+                            answer = chat_response.json()["answer"]
+                        elif chat_response.status_code == 404:
+                            answer = (
+                                "⚠️ Your session has expired (the backend was restarted). "
+                                "Please re-upload and process your lecture to continue."
+                            )
+                        else:
+                            detail = chat_response.json().get("detail", chat_response.text)
+                            answer = f"❌ Backend error: {detail}"
 
-                    answer = result["answer"]
+                    except requests.exceptions.Timeout:
+                        answer = "⏱️ The request timed out. Please try again."
+                    except requests.exceptions.ConnectionError:
+                        answer = "🔌 Lost connection to the backend. Please check the API server."
+                    except Exception as e:
+                        answer = f"Unexpected error: {e}"
 
                     st.markdown(answer)
 
-                    # Store assistant reply
                     st.session_state.chat_history.append({
                         "role": "assistant",
                         "content": answer
